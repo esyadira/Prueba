@@ -20,7 +20,7 @@ async function sbInicializar() {
     if (error && error.code !== 'PGRST116' && error.code !== '42P01') throw error;
     _sbConectado = true;
     sbActualizarIndicador(true);
-    await sbCargarDesdeNube();
+    await sbCargarDesdeNube(false); // arranque automático: respeta lo que se hizo sin internet
     console.log('Supabase conectado OK');
   } catch(e) {
     _sbConectado = false;
@@ -55,15 +55,23 @@ async function sbGuardarEnNube() {
   try {
     const { error } = await _supabase.from('bodega_sync').upsert(payload, { onConflict: 'tienda' });
     if (error) throw error;
+    localStorage.removeItem('bodega_sb_pendiente');
     const ind = document.getElementById('sbLastSync');
     if (ind) ind.textContent = 'Última sync: ' + new Date().toLocaleTimeString('es-PE');
   } catch(e) { console.warn('Error guardando en nube:', e.message); }
 }
 
-async function sbCargarDesdeNube() {
+async function sbCargarDesdeNube(forzar = true) {
   if (!_supabase || !_sbConectado) return;
   const cfg = sbGetConfig();
   if (!cfg) return;
+  // Trabajaste sin internet: lo local es lo más nuevo. Se sube a la nube en vez de bajar y pisarlo.
+  if (!forzar && localStorage.getItem('bodega_sb_pendiente') === '1') {
+    console.warn('[BodegaPOS] Hay cambios hechos sin internet. Subiendo a la nube...');
+    await sbGuardarEnNube();
+    if (localStorage.getItem('bodega_sb_pendiente') !== '1') showToast('Cambios hechos sin internet subidos a la nube ☁️', 'success');
+    return;
+  }
   try {
     const { data, error } = await _supabase.from('bodega_sync').select('datos,settings').eq('tienda', cfg.tienda).single();
     if (error || !data) return;
@@ -125,6 +133,7 @@ async function sbCargarDesdeNube() {
 
 function sbSyncDebounced() {
   if (_sbSkipSync) return; // No sincronizar si estamos cargando desde la nube
+  if (sbGetConfig()) localStorage.setItem('bodega_sb_pendiente', '1'); // queda pendiente hasta que se suba con éxito
   clearTimeout(_sbSyncTimeout);
   _sbSyncTimeout = setTimeout(() => sbGuardarEnNube(), 1500);
 }
@@ -196,3 +205,8 @@ function sbRenderCfgPanel() {
       <button class="btn btn-primary" onclick="sbConectarManual()" style="width:100%;"><i class="fa fa-cloud-arrow-up"></i> Conectar con Supabase</button>`;
   }
 }
+
+// Al volver el internet, reconecta y sube lo que se hizo sin conexión
+window.addEventListener('online', () => {
+  if (sbGetConfig() && !_sbConectado) sbInicializar();
+});

@@ -4,6 +4,7 @@ const _settingsDefault = {
     apariencia: { darkMode: false, colorAcento: "#f59e0b" },
     alertas:    { stock: true, minStock: 3, deuda: true, montoDeuda: 100 },
     sistema:    { moneda: "S/.", ticket: true, mensajes: true, confirmDel: true, margenAuto: true, margenPct: 20 },
+    funciones:  { fiar: true }, // Funciones opcionales del sistema que se pueden apagar/prender desde Preferencias
     pagos:      { yape: true, tarjeta: true, mixto: true },  // Efectivo siempre está activo
     ticket:     {},  // el diseño completo y sus valores por defecto están en ticket.js
     terminal:   { activo: false, proveedor: null, izipay: {}, mercadopago: {} }, // Terminal de cobro: Izipay / Mercado Pago
@@ -17,6 +18,7 @@ let settings = {
     apariencia: Object.assign({}, _settingsDefault.apariencia, _settingsRaw.apariencia || {}),
     alertas:    Object.assign({}, _settingsDefault.alertas,    _settingsRaw.alertas    || {}),
     sistema:    Object.assign({}, _settingsDefault.sistema,    _settingsRaw.sistema    || {}),
+    funciones:  Object.assign({}, _settingsDefault.funciones,  _settingsRaw.funciones  || {}),
     pagos:      Object.assign({}, _settingsDefault.pagos,      _settingsRaw.pagos      || {}),
     ticket:     Object.assign({}, _settingsDefault.ticket,     _settingsRaw.ticket     || {}),
     terminal:   Object.assign({}, _settingsDefault.terminal,   _settingsRaw.terminal   || {}),
@@ -146,6 +148,7 @@ function aplicarCambiosVisuales() {
 function inicializarAjustes() {
     // Aplicar cambios visuales SIEMPRE (header nombre + logo + color)
     aplicarCambiosVisuales();
+    aplicarFunciones();
     
     // Cargar previsualización del logo en el panel de configuración (si existe)
     if(settings.negocio.logo) {
@@ -175,6 +178,7 @@ function inicializarAjustes() {
     safe('cfg-pago-yape', settings.pagos.yape);
     safe('cfg-pago-tarjeta', settings.pagos.tarjeta);
     safe('cfg-pago-mixto', settings.pagos.mixto);
+    safe('cfg-funcion-fiar', settings.funciones.fiar);
     if (typeof aplicarFormasPago === 'function') aplicarFormasPago();
 
     // Actualizar preview del nombre si está visible
@@ -609,6 +613,38 @@ function toggleMargenAuto(checked) {
     settings.sistema.margenAuto = checked;
     localStorage.setItem('bodega_settings', JSON.stringify(settings));
     if (typeof sbSyncDebounced === 'function') sbSyncDebounced();
+}
+
+// --- FUNCIONES DEL SISTEMA (Preferencias > qué le muestra el sistema al usuario) ---
+// Cada función opcional oculta/muestra sus propios elementos en el menú, dashboard y demás pantallas.
+function aplicarFunciones() {
+    const on = settings.funciones.fiar;
+
+    // Menú lateral: "Clientes"
+    const navCli = document.getElementById('navClientes');
+    if (navCli) navCli.style.display = on ? '' : 'none';
+
+    // Dashboard: tarjeta "Deuda Alta"
+    const cardDeuda = document.getElementById('dashCardDeudaAlta');
+    if (cardDeuda) cardDeuda.style.display = on ? '' : 'none';
+
+    // Punto de venta: buscador de cliente + badge del cliente seleccionado
+    const posCli = document.getElementById('posClienteBuscarWrap');
+    if (posCli) posCli.style.display = on ? '' : 'none';
+
+    // Si estaban en la página de Clientes y se apagó la función, saca al usuario de ahí
+    if (!on && document.getElementById('page-clientes')?.classList.contains('active') && typeof showPage === 'function') {
+        showPage('dashboard');
+    }
+}
+
+// Handler del checkbox "Fiar a clientes" en Preferencias > Sistema
+function toggleFuncionFiar(checked) {
+    settings.funciones.fiar = checked;
+    localStorage.setItem('bodega_settings', JSON.stringify(settings));
+    if (typeof sbSyncDebounced === 'function') sbSyncDebounced();
+    aplicarFunciones();
+    if (typeof clearClientSel === 'function') clearClientSel(); // por si había un cliente elegido en el POS
 }
 
 function toggleAlertaDeuda(checked) {
