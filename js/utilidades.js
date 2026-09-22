@@ -21,10 +21,27 @@ function previewImg(input){
   const file=input.files[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=e=>{
-    const img=document.getElementById('imgPreview');
-    img.src=e.target.result;img.style.display='block';
-    const icon=document.getElementById('prodImgIcon');
-    if(icon)icon.style.display='none';
+    const im=new Image();
+    im.onload=()=>{
+      // Se reduce a máx. 500px y se comprime para no llenar el almacenamiento local con fotos pesadas de celular
+      const r=Math.min(1,500/Math.max(im.width,im.height));
+      const c=document.createElement('canvas');
+      c.width=Math.max(1,Math.round(im.width*r));
+      c.height=Math.max(1,Math.round(im.height*r));
+      c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+      const dataUrl=c.toDataURL('image/jpeg',0.75);
+      const imgEl=document.getElementById('imgPreview');
+      imgEl.src=dataUrl;imgEl.style.display='block';
+      const icon=document.getElementById('prodImgIcon');
+      if(icon)icon.style.display='none';
+    };
+    im.onerror=()=>{
+      const imgEl=document.getElementById('imgPreview');
+      imgEl.src=e.target.result;imgEl.style.display='block';
+      const icon=document.getElementById('prodImgIcon');
+      if(icon)icon.style.display='none';
+    };
+    im.src=e.target.result;
   };
   reader.readAsDataURL(file);
 }

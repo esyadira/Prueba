@@ -522,20 +522,21 @@ function saveProduct(){
   // Campos nuevos de precio / unidad (se usan tanto al crear como al editar)
   const extra = {unidad, esPeso: unidad === 'kg', unidadesPaquete, costo, gananciaPct, promo: promoRes.promo, precioPromo: 0, promoHasta: '', stockFijoFecha: fijoOn ? hoyISO() : undefined};
 
+  let _prodMsg = '';
   if(editId){
     const idx = productos.findIndex(p => p.id === parseInt(editId));
     if(idx > -1){
       productos[idx] = {...productos[idx], nombre, cat, precio, img, stock, stockMin, codigo, stockFijo: stockFijo || 0, desc, ...extra};
-      showToast('Producto actualizado', 'success');
+      _prodMsg = 'Producto actualizado';
     }
   } else {
     const existing = codigo ? productos.find(p => p.codigo === codigo) : null;
     if(existing){
       existing.stock += stock;
-      showToast(`Stock actualizado: ${existing.nombre}`, 'success');
+      _prodMsg = `Stock actualizado: ${existing.nombre}`;
     } else {
       productos.push({id: Date.now(), codigo, nombre, cat, stock, precio, img, estado: 'ok', stockMin, stockFijo: stockFijo || 0, desc, ...extra});
-      showToast('Producto guardado', 'success');
+      _prodMsg = 'Producto guardado';
     }
   }
 
@@ -551,7 +552,8 @@ function saveProduct(){
   renderPOSProducts();
   updateStockBajoCount();
   actualizarNotificaciones();
-  guardarTodoEnLocalStorage();
+  // El toast de éxito solo aparece si en verdad se guardó (antes se mostraba igual aunque fallara)
+  if (guardarTodoEnLocalStorage()) showToast(_prodMsg, 'success');
   renderCategoryChart();
   closeModal('modalProducto');
 }

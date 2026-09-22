@@ -70,16 +70,26 @@ function guardarTodoEnLocalStorage() {
     ordenesCompra: ordenesCompra,
     listaCompras: listaCompras
   };
-  localStorage.setItem('bodega_data_permanente', JSON.stringify(datos));
-  localStorage.setItem('bodega_ventas_historial', JSON.stringify(ventasHistorial));
-  localStorage.setItem('bodega_pagos_proveedores', JSON.stringify(pagosProveedoresHistorial));
-  localStorage.setItem('bodega_categorias', JSON.stringify(categorias));
-  localStorage.setItem('bodega_cajas', JSON.stringify(cajasHistorial));
-  localStorage.setItem('bodega_movimientos_caja', JSON.stringify(movimientosCaja));
-  localStorage.setItem('bodega_ventas_pendientes', JSON.stringify(ventasPendientes));
-  localStorage.setItem('bodega_devoluciones', JSON.stringify(devolucionesHistorial));
+  try {
+    localStorage.setItem('bodega_data_permanente', JSON.stringify(datos));
+    localStorage.setItem('bodega_ventas_historial', JSON.stringify(ventasHistorial));
+    localStorage.setItem('bodega_pagos_proveedores', JSON.stringify(pagosProveedoresHistorial));
+    localStorage.setItem('bodega_categorias', JSON.stringify(categorias));
+    localStorage.setItem('bodega_cajas', JSON.stringify(cajasHistorial));
+    localStorage.setItem('bodega_movimientos_caja', JSON.stringify(movimientosCaja));
+    localStorage.setItem('bodega_ventas_pendientes', JSON.stringify(ventasPendientes));
+    localStorage.setItem('bodega_devoluciones', JSON.stringify(devolucionesHistorial));
+  } catch (e) {
+    // La memoria local del navegador se llenó (o algo falló) y NO se guardó nada de esto.
+    // Antes esto fallaba en silencio y la app igual decía "guardado" — ahora se avisa siempre.
+    console.error('No se pudo guardar en localStorage:', e);
+    const msg = '⚠️ NO SE GUARDÓ — memoria local llena. No cierres esta pestaña. Exporta un backup ya (Configuración > Copia de seguridad) y borra fotos de productos.';
+    if (typeof showToast === 'function') showToast(msg, 'error'); else alert(msg);
+    return false;
+  }
   // ☁️ Sincronizar con Supabase automáticamente (con debounce de 1.5s)
   sbSyncDebounced();
   console.log("Datos guardados automáticamente.");
+  return true;
 }
 
